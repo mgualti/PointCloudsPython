@@ -34,6 +34,10 @@ PclSavePcd = PointCloudsPython.PclSavePcd
 PclSavePcd.restype = c_int
 PclSavePcd.argtypes = [POINTER(c_char), ndpointer(c_float, flags="C_CONTIGUOUS"), c_int]
 
+PclSaveOrganizedPcd = PointCloudsPython.PclSaveOrganizedPcd
+PclSaveOrganizedPcd.restype = c_int
+PclSaveOrganizedPcd.argtypes = [POINTER(c_char), ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_int, c_int]
+
 PclVoxelize = PointCloudsPython.PclVoxelize
 PclVoxelize.restype = c_int
 PclVoxelize.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_float)), POINTER(c_int)]
@@ -227,6 +231,15 @@ def SavePcd(fileName, cloud):
 
   cloud = ascontiguousarray(cloud, dtype='float32')
   errorCode = PclSavePcd(fileName, cloud, cloud.shape[0])
+
+  if errorCode < 0:
+    raise Exception("Failed to save {}.".format(fileName))
+
+def SaveOrganizedPcd(fileName, cloud, height, width):
+  '''Reorganizes cloud and saves it to (ASCII) PCD file.'''
+
+  cloud = ascontiguousarray(cloud, dtype='float32')
+  errorCode = PclSaveOrganizedPcd(fileName, cloud, cloud.shape[0], height, width)
 
   if errorCode < 0:
     raise Exception("Failed to save {}.".format(fileName))
