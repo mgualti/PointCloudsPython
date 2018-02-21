@@ -119,6 +119,30 @@ extern "C" int PclSavePcd(char* fileName, float* points, int nPoints)
   return 0;
 }
 
+extern "C" int PclSaveOrganizedPcd(char* fileName, float* points, int nPoints, int height, int width)
+{
+  PointCloud<PointXYZ> cloud;
+  PclArrayToPointCloud(points, nPoints, cloud);
+
+  PointCloud<PointXYZ> cloud_organized;
+  cloud_organized.height = height;
+  cloud_organized.width = width;
+  cloud_organized.points.resize(height*width);
+
+  for (int i = 0; i < height; i++)
+  {
+    for (int j = 0; j < width; j++)
+    {
+      cloud_organized.at(j,i) = cloud.points[i*width + j];
+    }
+  }
+
+  if (savePCDFileASCII(fileName, cloud_organized) < 0)
+    return -1;
+
+  return 0;
+}
+
 extern "C" int PclVoxelize(float* pointsIn, int nPointsIn, float voxelSize, float** pointsOut, int* nPointsOut)
 {
   PointCloud<PointXYZ>::Ptr cloudIn(new PointCloud<PointXYZ>);
