@@ -26,6 +26,10 @@ CopyAndFree = PointCloudsPython.CopyAndFree
 CopyAndFree.restype = c_int
 CopyAndFree.argtypes = [POINTER(c_float), ndpointer(c_float, flags="C_CONTIGUOUS"), c_int]
 
+CopyAndFreeInt = PointCloudsPython.CopyAndFreeInt
+CopyAndFreeInt.restype = c_int
+CopyAndFreeInt.argtypes = [POINTER(c_int), ndpointer(c_int, flags="C_CONTIGUOUS"), c_int]
+
 PclLoadPcd = PointCloudsPython.PclLoadPcd
 PclLoadPcd.restype = c_int
 PclLoadPcd.argtypes = [POINTER(c_char), POINTER(POINTER(c_float)), POINTER(c_int)]
@@ -41,6 +45,14 @@ PclSaveOrganizedPcd.argtypes = [POINTER(c_char), ndpointer(c_float, flags="C_CON
 PclVoxelize = PointCloudsPython.PclVoxelize
 PclVoxelize.restype = c_int
 PclVoxelize.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_float)), POINTER(c_int)]
+
+PclRemoveStatisticalOutliers = PointCloudsPython.PclRemoveStatisticalOutliers
+PclRemoveStatisticalOutliers.restype = c_int
+PclRemoveStatisticalOutliers.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_int, c_float, POINTER(POINTER(c_float)), POINTER(c_int)]
+
+PclSegmentPlane = PointCloudsPython.PclSegmentPlane
+PclSegmentPlane.restype = c_int
+PclSegmentPlane.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_int)), POINTER(c_int)]
 
 # FUNCTIONS ========================================================================================
 
@@ -109,11 +121,11 @@ def FilterNearAndFarPoints(axis, minDist, maxDist, cloud, normals=None):
     - Returns cloud: mx3 numpy array.
     - Returns normals: (optional) mx3 numpy array.
     '''
-    
+
     mask = logical_and(cloud[:, axis] >= minDist, cloud[:, axis] <= maxDist)
     cloud = cloud[mask, :]
     if normals is None: return cloud
-    
+
     normals = normals[mask, :]
     return cloud, normals
 
@@ -303,8 +315,53 @@ def Voxelize(cloud, voxelSize):
   PclVoxelize(cloud, cloud.shape[0], voxelSize, ppoints, nPoints)
   points = ppoints.contents
   nPoints = nPoints.contents.value
+  print 'nPoints:', nPoints
 
   cloud = empty((nPoints, 3), dtype='float32', order='C')
   CopyAndFree(points, cloud, nPoints)
 
   return cloud
+
+def RemoveStatisticalOutliers(cloud, meanK, stddevMulThresh):
+  '''Calls PCL to remove statistical outliers from the cloud.
+  - Input cloud: nx3 point cloud from which to remove outliers.
+  - Input meanK: Scalar number of neighbors to analyze.
+  - Input stddevMulThresh: Scalar standard deviation multiplier.
+  - Returns cloud: nx3, c-contiguous, float32 numpy array.
+  '''
+
+  cloud = ascontiguousarray(cloud, dtype='float32')
+
+  nPoints = pointer(c_int(0))
+  ppoints = pointer(pointer(c_float(0)))
+
+  PclRemoveStatisticalOutliers(cloud, cloud.shape[0], meanK, stddevMulThresh,
+    ppoints, nPoints)
+  points = ppoints.contents
+  nPoints = nPoints.contents.value
+
+  cloud = empty((nPoints, 3), dtype='float32', order='C')
+  CopyAndFree(points, cloud, nPoints)
+
+  return cloud
+
+def SegmentPlane(cloud, distanceThreshold):
+  '''Calls PCL to segment the largest plane from the cloud.
+  - Input cloud: nx3 point cloud from which to segment the plane.
+  - Input distanceThreshold: Scalar distance threshold from plane.
+  - Returns indicesOut: nx1, c-contiguous, int32 numpy array.
+  '''
+
+  cloud = ascontiguousarray(cloud, dtype='float32')
+
+  nIndices = pointer(c_int(0))
+  pindices = pointer(pointer(c_int(0)))
+
+  PclSegmentPlane(cloud, cloud.shape[0], distanceThreshold, pindices, nIndices)
+  indices = pindices.contents
+  nIndices = nIndices.contents.value
+
+  indicesOut = empty((nIndices,1), dtype='int32', order='C')
+  CopyAndFreeInt(indices, indicesOut, nIndices)
+
+  return indicesOut
