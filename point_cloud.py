@@ -12,7 +12,8 @@ from scipy.io import loadmat, savemat
 from matplotlib import pyplot
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.ctypeslib import ndpointer
-from numpy import array, ascontiguousarray, dot, empty, isinf, isnan, logical_and, logical_not, logical_or, ones, reshape, sum, vstack
+from numpy import array, ascontiguousarray, dot, empty, isinf, isnan, logical_and, logical_not, \
+  logical_or, ones, reshape, sum, vstack, zeros
 
 # C BINDINGS =======================================================================================
 
@@ -29,6 +30,10 @@ CopyAndFree.argtypes = [POINTER(c_float), ndpointer(c_float, flags="C_CONTIGUOUS
 CopyAndFreeInt = PointCloudsPython.CopyAndFreeInt
 CopyAndFreeInt.restype = c_int
 CopyAndFreeInt.argtypes = [POINTER(c_int), ndpointer(c_int, flags="C_CONTIGUOUS"), c_int]
+
+PclIcp = PointCloudsPython.PclIcp
+PclIcp.restype = c_int
+PclIcp.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, ndpointer(c_float, flags="C_CONTIGUOUS")]
 
 PclLoadPcd = PointCloudsPython.PclLoadPcd
 PclLoadPcd.restype = c_int
@@ -146,6 +151,21 @@ def FilterWorkspace(workspace, cloud, normals=None):
 
   normals = normals[mask, :]
   return cloud, normals
+
+def Icp(cloud1, cloud2):
+  '''Runs iterative closest point to align cloud2 to cloud1.
+  - Input cloud1: nx3 numpy array, the target cloud.
+  - Input cloud2: nx3 numpy array, the source cloud.
+  - Returns T: 4x4 homogenous transform that should be applied to cloud2 to make it similar to cloud1.
+  '''
+  
+  cloud1 = ascontiguousarray(cloud1, dtype='float32')
+  cloud2 = ascontiguousarray(cloud2, dtype='float32')
+  T = zeros(16, dtype='float32')
+
+  PclIcp(cloud1, cloud1.shape[0], cloud2, cloud2.shape[0], T)
+  T = reshape(T, (4,4)).T
+  return T
 
 def LoadMat(fileName):
   '''Loads a point cloud from a Matlab .mat file.
@@ -315,7 +335,6 @@ def Voxelize(cloud, voxelSize):
   PclVoxelize(cloud, cloud.shape[0], voxelSize, ppoints, nPoints)
   points = ppoints.contents
   nPoints = nPoints.contents.value
-  print 'nPoints:', nPoints
 
   cloud = empty((nPoints, 3), dtype='float32', order='C')
   CopyAndFree(points, cloud, nPoints)

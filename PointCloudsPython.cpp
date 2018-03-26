@@ -2,6 +2,7 @@
 #include <iostream>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <pcl/registration/icp.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/filters/statistical_outlier_removal.h>
@@ -118,6 +119,28 @@ extern "C" int PclComputeNormals(float* pointsIn, int nPointsIn, int kNeighborho
     return -2;
 
   PclNormalsToNewArray(normals, normalsOut);
+  return 0;
+}
+
+extern "C" int PclIcp(float* points1, int nPoints1, float* points2, int nPoints2, float* T)
+{
+  PointCloud<PointXYZ>::Ptr cloud1(new PointCloud<PointXYZ>);
+  PointCloud<PointXYZ>::Ptr cloud2(new PointCloud<PointXYZ>);
+
+  PclArrayToPointCloudPtr(points1, nPoints1, cloud1);
+  PclArrayToPointCloudPtr(points2, nPoints2, cloud2);
+  
+  pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+  icp.setInputSource(cloud2);
+  icp.setInputTarget(cloud1);
+  pcl::PointCloud<pcl::PointXYZ> Final;
+  icp.align(Final);
+
+  Eigen::Matrix4f M = icp.getFinalTransformation();
+  
+  for (int i = 0; i < 16; i++)
+	T[i] = M(i);
+  
   return 0;
 }
 

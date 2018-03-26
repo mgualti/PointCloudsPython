@@ -7,40 +7,48 @@ import point_cloud
 
 def main():
   '''Entrypoint to the program.'''
+  
+  X = point_cloud.LoadPcd("test.pcd")  
+  
+  items = globals()
+  for item in items:
+    if len(item) > 4 and item[:4] == "Test":
+      
+      try:
+        result = eval(item + "(X)")
+      except:
+        result = False
+      
+      if result: print(item + " PASSED")
+      else: print(item + " FAILED")
 
-  print("Loading cloud.")
-  X = point_cloud.LoadPcd("test.pcd")
-  # point_cloud.Plot(X)
+def TestComputeNormals(X):
+  point_cloud.ComputeNormals(X)
+  V = tile(array([[-1,0,1]]), (X.shape[0],1))
+  point_cloud.ComputeNormals(X, V, kNeighbors=30, rNeighbors=0)
+  return True
 
-  # print("Saving cloud and loading saved cloud.")
-  # point_cloud.SavePcd("save.pcd", X)
-  # X = point_cloud.LoadPcd("save.pcd")
-  # point_cloud.Plot(X)
-  #
-  # print("Voxelizing.")
-  # V = point_cloud.Voxelize(X, 0.01)
-  # point_cloud.Plot(V)
-  #
-  # print("Computing normals.")
-  # startTime = time()
-  # N = point_cloud.ComputeNormals(X)
-  # print("Normals computation took {}s.".format(time()-startTime))
-  # point_cloud.Plot(X, N, 5)
-  #
-  # print("Normals with viewpoints.")
-  # V = tile(array([[-1,0,1]]), (X.shape[0],1))
-  # N = point_cloud.ComputeNormals(X, V, kNeighbors=30, rNeighbors=0)
-  # point_cloud.Plot(X, N, 5)
+def TestIcp(X):
+  T = point_cloud.Icp(X, X)
+  return T[3,0] == 0 and T[3,1] == 0 and T[3,2] == 0 and T[3,3] == 1
+  
+def TestRemoveStatisticalOutliers(X):
+   point_cloud.RemoveStatisticalOutliers(X, 50, 1.0)
+   return True
 
-  print("Removing statistical outliers.")
-  S = point_cloud.RemoveStatisticalOutliers(X, 50, 1.0)
-  print S
+def TestSavePcd(X):
+  point_cloud.SavePcd("save.pcd", X)
+  X = point_cloud.LoadPcd("save.pcd")
+  #point_cloud.Plot(X)
+  return X.shape[0] == 2977 and X.shape[1] == 3
 
-  print("Segmenting plane.")
-  I = point_cloud.SegmentPlane(X, 0.008)
-  print I
+def TestSegmentPlane(X):
+  point_cloud.SegmentPlane(X, 0.008)
+  return True
 
-  print X
+def TestVoxelize(X):
+  point_cloud.Voxelize(X, 0.01)
+  return True
 
 if __name__ == "__main__":
   main()
