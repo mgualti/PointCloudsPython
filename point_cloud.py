@@ -13,7 +13,7 @@ from matplotlib import pyplot
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.ctypeslib import ndpointer
 from numpy import array, ascontiguousarray, dot, empty, isinf, isnan, logical_and, logical_not, \
-  logical_or, ones, reshape, sum, vstack, zeros
+  logical_or, ones, repeat, reshape, sum, vstack, zeros
 
 # C BINDINGS =======================================================================================
 
@@ -408,6 +408,9 @@ def Voxelize(voxelSize, cloud, normals=None):
     norms = pnormals.contents
     normals = empty((nPoints, 3), dtype='float32', order='C')
     CopyAndFree(norms, normals, nPoints)
+    # correct for errors introduced by PCL averaging normals
+    magnitudes = repeat(reshape(norm(normals, axis=1), (nPoints, 1)), 3, axis=1)
+    normals = normals / magnitudes
     return cloud, normals
 
   return cloud

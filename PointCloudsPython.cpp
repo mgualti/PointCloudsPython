@@ -39,9 +39,9 @@ int PclArraysToPointCloudNormalPtr(float* points, float* normals, int nPoints, P
     pn.x = points[3*i+0];
     pn.y = points[3*i+1];
     pn.z = points[3*i+2];
-    pn.normal_x = points[3*i+0];
-    pn.normal_y = points[3*i+1];
-    pn.normal_z = points[3*i+2];
+    pn.normal_x = normals[3*i+0];
+    pn.normal_y = normals[3*i+1];
+    pn.normal_z = normals[3*i+2];
     cloud->push_back(pn);
   }
 
@@ -94,8 +94,8 @@ int PclPointCloudNormalToNewArrays(PointCloud<PointNormal>& cloud, float** ppoin
     points[3*i+1] = cloud[i].y;
     points[3*i+2] = cloud[i].z;
     normals[3*i+0] = cloud[i].normal_x;
-    normals[3*i+0] = cloud[i].normal_y;
-    normals[3*i+0] = cloud[i].normal_z;
+    normals[3*i+1] = cloud[i].normal_y;
+    normals[3*i+2] = cloud[i].normal_z;
   }
 
   return 0;

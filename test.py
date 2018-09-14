@@ -85,13 +85,16 @@ def TestVoxelize(X):
 def TestVoxelizeWithNormals(X):
   N = point_cloud.ComputeNormals(X)
   XX, NN = point_cloud.Voxelize(0.005, X, N)
-
+  norms = norm(NN, axis=1)
   if XX.shape[0] > X.shape[0] or NN.shape[0] > N.shape[0]:
     print X.shape, XX.shape, N.shape, NN.shape
     return False
   if XX.shape[0] != NN.shape[0] or XX.shape[1] != NN.shape[1]:
     return False
   if XX.shape[1] != 3 or NN.shape[1] != 3: return False
+  if (norms > 1.001).any() or (norms < 0.999).any():
+    print max(norms), min(norms)
+    return False
   return True
 
 if __name__ == "__main__":
