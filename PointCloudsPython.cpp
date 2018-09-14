@@ -31,6 +31,23 @@ int PclArrayToPointCloudPtr(float* points, int nPoints, PointCloud<PointXYZ>::Pt
   return 0;
 }
 
+int PclArraysToPointCloudNormalPtr(float* points, float* normals, int nPoints, PointCloud<PointNormal>::Ptr& cloud)
+{
+  PointNormal pn;
+  for (int i = 0; i < nPoints; i++)
+  {
+    pn.x = points[3*i+0];
+    pn.y = points[3*i+1];
+    pn.z = points[3*i+2];
+    pn.normal_x = points[3*i+0];
+    pn.normal_y = points[3*i+1];
+    pn.normal_z = points[3*i+2];
+    cloud->push_back(pn);
+  }
+
+  return 0;
+}
+
 int PclNormalsToNewArray(PointCloud<Normal>& cloud, float** pnormals)
 {
   int nNormals = cloud.size();
@@ -58,6 +75,27 @@ int PclPointCloudToNewArray(PointCloud<PointXYZ>& cloud, float** ppoints, int* n
     points[3*i+0] = cloud[i].x;
     points[3*i+1] = cloud[i].y;
     points[3*i+2] = cloud[i].z;
+  }
+
+  return 0;
+}
+
+int PclPointCloudNormalToNewArrays(PointCloud<PointNormal>& cloud, float** ppoints, float** pnormals, int* nPoints)
+{
+  *nPoints = cloud.size();
+  float* points = new float[*nPoints * 3];
+  float* normals = new float[*nPoints * 3];
+  *ppoints = points;
+  *pnormals = normals;
+
+  for (int i = 0; i < *nPoints; i++)
+  {
+    points[3*i+0] = cloud[i].x;
+    points[3*i+1] = cloud[i].y;
+    points[3*i+2] = cloud[i].z;
+    normals[3*i+0] = cloud[i].normal_x;
+    normals[3*i+0] = cloud[i].normal_y;
+    normals[3*i+0] = cloud[i].normal_z;
   }
 
   return 0;
@@ -189,22 +227,6 @@ extern "C" int PclSaveOrganizedPcd(char* fileName, float* points, int nPoints, i
   return 0;
 }
 
-extern "C" int PclVoxelize(float* pointsIn, int nPointsIn, float voxelSize, float** pointsOut, int* nPointsOut)
-{
-  PointCloud<PointXYZ>::Ptr cloudIn(new PointCloud<PointXYZ>);
-  PointCloud<PointXYZ> cloudOut;
-
-  PclArrayToPointCloudPtr(pointsIn, nPointsIn, cloudIn);
-
-  VoxelGrid<PointXYZ> grid;
-  grid.setInputCloud(cloudIn);
-  grid.setLeafSize(voxelSize, voxelSize, voxelSize);
-  grid.filter(cloudOut);
-
-  PclPointCloudToNewArray(cloudOut, pointsOut, nPointsOut);
-  return 0;
-}
-
 extern "C" int PclRemoveStatisticalOutliers(float* pointsIn, int nPointsIn, int meanK, float stddevMulThresh, float** pointsOut, int* nPointsOut)
 {
   PointCloud<PointXYZ>::Ptr cloudIn(new PointCloud<PointXYZ>);
@@ -244,15 +266,35 @@ extern "C" int PclSegmentPlane(float* pointsIn, int nPointsIn, float distanceThr
   return 0;
 }
 
-/*
-  template<class T>
-  TRAJOPT_API typename pcl::PointCloud<T>::Ptr statisticalOutlierRemoval(typename pcl::PointCloud<T>::ConstPtr in, int kNeighbors, float outlierStd) {
-    typename pcl::PointCloud<T>::Ptr out (new typename pcl::PointCloud<T>);
-    pcl::StatisticalOutlierRemoval< T > sor;
-    sor.setInputCloud (in);
-    sor.setMeanK (kNeighbors);
-    sor.setStddevMulThresh (outlierStd);
-    sor.filter (*out);
-    return out;
-  }
-*/
+extern "C" int PclVoxelize(float* pointsIn, int nPointsIn, float voxelSize, float** pointsOut, int* nPointsOut)
+{
+  PointCloud<PointXYZ>::Ptr cloudIn(new PointCloud<PointXYZ>);
+  PointCloud<PointXYZ> cloudOut;
+
+  PclArrayToPointCloudPtr(pointsIn, nPointsIn, cloudIn);
+
+  VoxelGrid<PointXYZ> grid;
+  grid.setInputCloud(cloudIn);
+  grid.setLeafSize(voxelSize, voxelSize, voxelSize);
+  grid.filter(cloudOut);
+
+  PclPointCloudToNewArray(cloudOut, pointsOut, nPointsOut);
+  return 0;
+}
+
+extern "C" int PclVoxelizeWithNormals(float* pointsIn, float* normalsIn, int nPointsIn, float voxelSize, float** pointsOut, float** normalsOut, int* nPointsOut)
+{
+  PointCloud<PointNormal>::Ptr cloudIn(new PointCloud<PointNormal>);
+  PointCloud<PointNormal> cloudOut;
+
+  PclArraysToPointCloudNormalPtr(pointsIn, normalsIn, nPointsIn, cloudIn);
+
+  VoxelGrid<PointNormal> grid;
+  grid.setInputCloud(cloudIn);
+  grid.setDownsampleAllData(true);
+  grid.setLeafSize(voxelSize, voxelSize, voxelSize);
+  grid.filter(cloudOut);
+
+  PclPointCloudNormalToNewArrays(cloudOut, pointsOut, normalsOut, nPointsOut);
+  return 0;
+}

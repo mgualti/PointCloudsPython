@@ -47,10 +47,6 @@ PclSaveOrganizedPcd = PointCloudsPython.PclSaveOrganizedPcd
 PclSaveOrganizedPcd.restype = c_int
 PclSaveOrganizedPcd.argtypes = [POINTER(c_char), ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_int, c_int]
 
-PclVoxelize = PointCloudsPython.PclVoxelize
-PclVoxelize.restype = c_int
-PclVoxelize.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_float)), POINTER(c_int)]
-
 PclRemoveStatisticalOutliers = PointCloudsPython.PclRemoveStatisticalOutliers
 PclRemoveStatisticalOutliers.restype = c_int
 PclRemoveStatisticalOutliers.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_int, c_float, POINTER(POINTER(c_float)), POINTER(c_int)]
@@ -58,6 +54,14 @@ PclRemoveStatisticalOutliers.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"
 PclSegmentPlane = PointCloudsPython.PclSegmentPlane
 PclSegmentPlane.restype = c_int
 PclSegmentPlane.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_int)), POINTER(c_int)]
+
+PclVoxelize = PointCloudsPython.PclVoxelize
+PclVoxelize.restype = c_int
+PclVoxelize.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_float)), POINTER(c_int)]
+
+PclVoxelizeWithNormals = PointCloudsPython.PclVoxelizeWithNormals
+PclVoxelizeWithNormals.restype = c_int
+PclVoxelizeWithNormals.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_float)), POINTER(POINTER(c_float)), POINTER(c_int)]
 
 # FUNCTIONS ========================================================================================
 
@@ -158,7 +162,7 @@ def Icp(cloud1, cloud2):
   - Input cloud2: nx3 numpy array, the source cloud.
   - Returns T: 4x4 homogenous transform that should be applied to cloud2 to make it similar to cloud1.
   '''
-  
+
   cloud1 = ascontiguousarray(cloud1, dtype='float32')
   cloud2 = ascontiguousarray(cloud2, dtype='float32')
   T = zeros(16, dtype='float32')
@@ -247,100 +251,6 @@ def Plot(cloud, normals=None, nthNormal=0):
 
   pyplot.show(block=True)
 
-def SaveMat(fileName, cloud, normals=None):
-  '''Saves cloud to Matlab .mat file.
-  - Input fileName: Name of the file to save (including extension).
-  - Input cloud: nx3 numpy array to save to the mat file.
-  - Input normals: Optionally nx3 array of surface normals to save.
-  - Returns None.
-  '''
-
-  data = {'cloud':cloud, 'normals':normals}
-  savemat(fileName, data)
-
-def SavePcd(fileName, cloud):
-  '''Saves cloud to (ASCII) PCD file.'''
-
-  cloud = ascontiguousarray(cloud, dtype='float32')
-  errorCode = PclSavePcd(fileName, cloud, cloud.shape[0])
-
-  if errorCode < 0:
-    raise Exception("Failed to save {}.".format(fileName))
-
-def SaveOrganizedPcd(fileName, cloud, height, width):
-  '''Reorganizes cloud and saves it to (ASCII) PCD file.'''
-
-  cloud = ascontiguousarray(cloud, dtype='float32')
-  errorCode = PclSaveOrganizedPcd(fileName, cloud, cloud.shape[0], height, width)
-
-  if errorCode < 0:
-    raise Exception("Failed to save {}.".format(fileName))
-
-def Transform(T, cloud, normals=None):
-  '''Applies homogeneous transform T to the cloud: y = Tx, for each x in cloud.
-  - Input T: 4x4 matrix, consisting of a 3x3 rotation matrix and 3x1 translation vector.
-  - Input cloud: nx3 points to apply transform to.
-  - Input normals: (optional) nx3 normalized vectors which will only be rotated.
-  '''
-
-  X = vstack((cloud.T, ones(cloud.shape[0])))
-  X = dot(T, X).T
-  X = X[:, 0:3]
-
-  if normals is None:
-    return X
-
-  T = T[0:3, 0:3]
-  N = dot(T, normals.T).T
-  return X, N
-
-def UpdatePlotExtents(x, y, z, extents=None):
-  '''Extends the current extents in a plot by the given values.
-
-  - Input x: List of x-coordiantes.
-  - Input y: List of y-coordinates.
-  - Input z: Lizt of z-coordinates.
-  - Input extents: Extents of all other points in the plot as (minX, maxX, minY, maxY, minZ, maxZ).
-  - Returns newExtents: The max/min of existing extents with the input coordinates.
-  '''
-
-  x = copy(x); y = copy(y); z = copy(z)
-
-  if type(x) == type(array([])):
-    x = x.flatten().tolist()
-    y = y.flatten().tolist()
-    z = z.flatten().tolist()
-
-  if extents != None:
-    x.append(extents[0]); x.append(extents[1])
-    y.append(extents[2]); y.append(extents[3])
-    z.append(extents[4]); z.append(extents[5])
-
-  extents = (min(x),max(x), min(y),max(y), min(z),max(z))
-
-  return extents
-
-def Voxelize(cloud, voxelSize):
-  '''Calls PCL to load the voxelize the cloud.
-  - Input cloud: nx3 point cloud to voxelize.
-  - Input voxelSize: Scalar size of the voxels to use.
-  - Returns cloud: nx3, c-contiguous, float32 numpy array.
-  '''
-
-  cloud = ascontiguousarray(cloud, dtype='float32')
-
-  nPoints = pointer(c_int(0))
-  ppoints = pointer(pointer(c_float(0)))
-
-  PclVoxelize(cloud, cloud.shape[0], voxelSize, ppoints, nPoints)
-  points = ppoints.contents
-  nPoints = nPoints.contents.value
-
-  cloud = empty((nPoints, 3), dtype='float32', order='C')
-  CopyAndFree(points, cloud, nPoints)
-
-  return cloud
-
 def RemoveStatisticalOutliers(cloud, meanK, stddevMulThresh):
   '''Calls PCL to remove statistical outliers from the cloud.
   - Input cloud: nx3 point cloud from which to remove outliers.
@@ -364,6 +274,36 @@ def RemoveStatisticalOutliers(cloud, meanK, stddevMulThresh):
 
   return cloud
 
+def SaveMat(fileName, cloud, normals=None):
+  '''Saves cloud to Matlab .mat file.
+  - Input fileName: Name of the file to save (including extension).
+  - Input cloud: nx3 numpy array to save to the mat file.
+  - Input normals: Optionally nx3 array of surface normals to save.
+  - Returns None.
+  '''
+
+  data = {'cloud':cloud}
+  if normals is not None: data["normals"] = normals
+  savemat(fileName, data)
+
+def SavePcd(fileName, cloud):
+  '''Saves cloud to (ASCII) PCD file.'''
+
+  cloud = ascontiguousarray(cloud, dtype='float32')
+  errorCode = PclSavePcd(fileName, cloud, cloud.shape[0])
+
+  if errorCode < 0:
+    raise Exception("Failed to save {}.".format(fileName))
+
+def SaveOrganizedPcd(fileName, cloud, height, width):
+  '''Reorganizes cloud and saves it to (ASCII) PCD file.'''
+
+  cloud = ascontiguousarray(cloud, dtype='float32')
+  errorCode = PclSaveOrganizedPcd(fileName, cloud, cloud.shape[0], height, width)
+
+  if errorCode < 0:
+    raise Exception("Failed to save {}.".format(fileName))
+
 def SegmentPlane(cloud, distanceThreshold):
   '''Calls PCL to segment the largest plane from the cloud.
   - Input cloud: nx3 point cloud from which to segment the plane.
@@ -384,3 +324,90 @@ def SegmentPlane(cloud, distanceThreshold):
   CopyAndFreeInt(indices, indicesOut, nIndices)
 
   return indicesOut
+
+def Transform(T, cloud, normals=None):
+  '''Applies homogeneous transform T to the cloud: y = Tx, for each x in cloud.
+  - Input T: 4x4 matrix, consisting of a 3x3 rotation matrix and 3x1 translation vector.
+  - Input cloud: nx3 points to apply transform to.
+  - Input normals: (optional) nx3 normalized vectors which will only be rotated.
+  '''
+
+  X = vstack((cloud.T, ones(cloud.shape[0])))
+  X = dot(T, X).T
+  X = X[:, 0:3]
+
+  if normals is None:
+    return X
+
+  T = T[0:3, 0:3]
+  N = dot(T, normals.T).T
+  return X, N
+
+def UpdatePlotExtents(x, y, z, extents=None):
+  '''Extends the current extents in a plot by the given values.
+  - Input x: List of x-coordiantes.
+  - Input y: List of y-coordinates.
+  - Input z: Lizt of z-coordinates.
+  - Input extents: Extents of all other points in the plot as (minX, maxX, minY, maxY, minZ, maxZ).
+  - Returns newExtents: The max/min of existing extents with the input coordinates.
+  '''
+
+  x = copy(x); y = copy(y); z = copy(z)
+
+  if type(x) == type(array([])):
+    x = x.flatten().tolist()
+    y = y.flatten().tolist()
+    z = z.flatten().tolist()
+
+  if extents != None:
+    x.append(extents[0]); x.append(extents[1])
+    y.append(extents[2]); y.append(extents[3])
+    z.append(extents[4]); z.append(extents[5])
+
+  extents = (min(x),max(x), min(y),max(y), min(z),max(z))
+
+  return extents
+
+def Voxelize(voxelSize, cloud, normals=None):
+  '''Calls PCL to load the voxelize the cloud.
+  - Input voxelSize: Scalar size of the voxels to use.
+  - Input cloud: nx3 point cloud to voxelize.
+  - Input normals: (Optional) nx3 array of surface normals .
+  - Returns cloud: mx3, c-contiguous, float32 numpy array.
+  - Returns normals: (Optional) mx3 normalized vectors corresponding to points in cloud.
+  '''
+
+  if cloud.shape[1] != 3:
+    raise Exception("Expected 3 columns in cloud, got {}.".format(cloud.shape[1]))
+
+  cloud = ascontiguousarray(cloud, dtype='float32')
+  nPoints = pointer(c_int(0))
+  ppoints = pointer(pointer(c_float(0)))
+
+  if normals is None:
+    PclVoxelize(cloud, cloud.shape[0], voxelSize, ppoints, nPoints)
+
+  else:
+
+    if normals.shape[0] != cloud.shape[0]:
+      raise Exception("Cloud has {} points and normals has {} points!".format(cloud.shape[0], normals.shape[0]))
+    if normals.shape[1] != 3:
+      raise Exception("Expected 3 columns in normals, got {}.".format(normals.shape[1]))
+
+    normals = ascontiguousarray(normals, dtype='float32')
+    pnormals = pointer(pointer(c_float(0)))
+
+    PclVoxelizeWithNormals(cloud, normals, cloud.shape[0], voxelSize, ppoints, pnormals, nPoints)
+
+  points = ppoints.contents
+  nPoints = nPoints.contents.value
+  cloud = empty((nPoints, 3), dtype='float32', order='C')
+  CopyAndFree(points, cloud, nPoints)
+
+  if normals is not None:
+    norms = pnormals.contents
+    normals = empty((nPoints, 3), dtype='float32', order='C')
+    CopyAndFree(norms, normals, nPoints)
+    return cloud, normals
+
+  return cloud

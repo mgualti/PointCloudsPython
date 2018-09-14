@@ -73,13 +73,25 @@ def TestSegmentPlane(X):
   return True
 
 def TestVoxelize(X):
-  A = point_cloud.Voxelize(X, 0.010)
-  B = point_cloud.Voxelize(X, 0.005)
-  C = point_cloud.Voxelize(X, 0.002)
+  A = point_cloud.Voxelize(0.010, X)
+  B = point_cloud.Voxelize(0.005, X)
+  C = point_cloud.Voxelize(0.002, X)
   if A.shape[0] > B.shape[0] or B.shape[0] > C.shape[0] or C.shape[0] > X.shape[0]:
     print X.shape, A.shape, B.shape, C.shape
     return False
   if A.shape[1] != 3 or B.shape[1] != 3 or C.shape[1] != 3: return False
+  return True
+
+def TestVoxelizeWithNormals(X):
+  N = point_cloud.ComputeNormals(X)
+  XX, NN = point_cloud.Voxelize(0.005, X, N)
+
+  if XX.shape[0] > X.shape[0] or NN.shape[0] > N.shape[0]:
+    print X.shape, XX.shape, N.shape, NN.shape
+    return False
+  if XX.shape[0] != NN.shape[0] or XX.shape[1] != NN.shape[1]:
+    return False
+  if XX.shape[1] != 3 or NN.shape[1] != 3: return False
   return True
 
 if __name__ == "__main__":
