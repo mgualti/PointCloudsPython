@@ -257,7 +257,7 @@ extern "C" int PclSegmentPlane(float* pointsIn, int nPointsIn, float distanceThr
   seg.setOptimizeCoefficients (true);
   seg.setModelType (SACMODEL_PLANE);
   seg.setMethodType (SAC_RANSAC);
-  seg.setDistanceThreshold (0.01);
+  seg.setDistanceThreshold (distanceThreshold);
   seg.setInputCloud (cloudIn);
   seg.segment (*inliers, *coefficients);
 
