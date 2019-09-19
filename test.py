@@ -42,7 +42,12 @@ def TestComputeNormals(X):
   if N.shape[0] != X.shape[0] or N.shape[1] != 3: return False
   if max(abs(norm(N, axis=1)-1.0)) > 0.001: return False
   return True
-
+  
+def TestExtractEuclideanClusters(X):
+  clouds = point_cloud.ExtractEuclideanClusters(X, 0.01, 30)
+  if len(clouds) != 1: return False
+  return True
+  
 def TestIcp(X):
   R = eye(4); R[0, 3] = 0.01
   Y = point_cloud.Transform(R, X)

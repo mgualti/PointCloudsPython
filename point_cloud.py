@@ -31,6 +31,10 @@ CopyAndFreeInt = PointCloudsPython.CopyAndFreeInt
 CopyAndFreeInt.restype = c_int
 CopyAndFreeInt.argtypes = [POINTER(c_int), ndpointer(c_int, flags="C_CONTIGUOUS"), c_int]
 
+PclExtractEuclideanClusters = PointCloudsPython.PclExtractEuclideanClusters
+PclExtractEuclideanClusters.restype = c_int
+PclExtractEuclideanClusters.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, c_int, c_int, ndpointer(c_int, flags="C_CONTIGUOUS")]
+
 PclIcp = PointCloudsPython.PclIcp
 PclIcp.restype = c_int
 PclIcp.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, ndpointer(c_float, flags="C_CONTIGUOUS")]
@@ -109,6 +113,39 @@ def ComputeNormals(cloud, viewPoints=None, kNeighbors=0, rNeighbors=0.03):
     normals[flip,:] = -normals[flip,:]
 
   return normals
+  
+def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxClusterSize = None):
+  '''Clusters the point cloud using PCL's Euclidean clustering method.
+  - Input cloud: nx3 numpy array.
+  - Input searchRadius: Maximum distance between neighboring points in the same cluster.
+  - Input minClusterSize: Minimum number of points in a single cluster.
+  - Input maxClusterSize: Maximum number of points in a single cluster.
+  - Returns clouds: A list of clouds with points from cloud, 1 for each cluster found. The number of
+    clusters is len(clouds).
+  '''
+  
+  if maxClusterSize is None:
+    maxClusterSize = cloud.shape[0]
+  
+  cloud = ascontiguousarray(cloud, dtype='float32')
+  clusterId = zeros(cloud.shape[0], dtype='int32')
+
+  errorCode = PclExtractEuclideanClusters(cloud, cloud.shape[0], searchRadius, minClusterSize,
+    maxClusterSize, clusterId)
+  
+  if errorCode == -1:
+    raise Exception("Invalid searchRadius {}.".format(searchRadius))
+  if errorCode == -2:
+    raise Exception("Invalid minClusterSize: {}.".format(minClusterSize))
+  if errorCode == -3:
+    raise Exception("Invalid maxClusterSize: {}".format(maxClusterSize))
+  
+  clouds = []
+  nClusters = max(clusterId)
+  for i in xrange(1, nClusters + 1):
+    clouds.append(cloud[clusterId == i, :])
+    
+  return clouds
 
 def FilterNans(cloud):
   '''Removes points that are (NaN, NaN, NaN).

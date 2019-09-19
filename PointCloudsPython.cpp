@@ -2,12 +2,14 @@
 #include <iostream>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
+#include <pcl/kdtree/kdtree.h>
 #include <pcl/registration/icp.h>
 #include <pcl/features/normal_3d.h>
 #include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/statistical_outlier_removal.h>
 #include <pcl/features/normal_3d_omp.h>
+#include <pcl/segmentation/extract_clusters.h>
 #include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/filters/statistical_outlier_removal.h>
 
 using namespace std;
 using namespace pcl;
@@ -157,6 +159,40 @@ extern "C" int PclComputeNormals(float* pointsIn, int nPointsIn, int kNeighborho
     return -2;
 
   PclNormalsToNewArray(normals, normalsOut);
+  return 0;
+}
+
+extern "C" int PclExtractEuclideanClusters(float* points, int nPoints, float searchRadius,
+  int minClusterSize, int maxClusterSize, int* clusterIndices)
+{
+  if (searchRadius < 0)
+    return -1;
+  if (minClusterSize < 0)
+    return -2;
+  if (maxClusterSize > nPoints)
+    return -3;
+  
+  PointCloud<PointXYZ>::Ptr cloud(new PointCloud<PointXYZ>);
+  PclArrayToPointCloudPtr(points, nPoints, cloud);
+  
+  search::KdTree<PointXYZ>::Ptr tree(new search::KdTree<PointXYZ>);
+  tree->setInputCloud(cloud);
+
+  vector<PointIndices> idxs;
+  EuclideanClusterExtraction<PointXYZ> ec;
+  ec.setClusterTolerance(searchRadius);
+  ec.setMinClusterSize(minClusterSize);
+  ec.setMaxClusterSize(maxClusterSize);
+  ec.setSearchMethod(tree);
+  ec.setInputCloud(cloud);
+  ec.extract(idxs);
+  
+  for (int i = 0; i < idxs.size(); i++)
+  {
+    for (int j = 0; j < idxs[i].indices.size(); j++)
+      clusterIndices[idxs[i].indices[j]] = i + 1;
+  }
+  
   return 0;
 }
 
