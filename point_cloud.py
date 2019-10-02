@@ -12,8 +12,8 @@ from scipy.io import loadmat, savemat
 from matplotlib import pyplot
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.ctypeslib import ndpointer
-from numpy import array, ascontiguousarray, dot, empty, isinf, isnan, logical_and, logical_not, \
-  logical_or, ones, repeat, reshape, sum, vstack, zeros
+from numpy import array, ascontiguousarray, dot, empty, eye, isinf, isnan, logical_and, \
+  logical_not, logical_or, ones, repeat, reshape, sum, vstack, zeros
 
 # C BINDINGS =======================================================================================
 
@@ -207,6 +207,20 @@ def Icp(cloud1, cloud2):
   PclIcp(cloud1, cloud1.shape[0], cloud2, cloud2.shape[0], T)
   T = reshape(T, (4,4)).T
   return T
+  
+def InverseTransform(T):
+    '''Quick inverse of homogeneous transform. Faster than linalg.inv.
+    - Input T: 4x4 matrix, assumed to be in SE(3) (i.e. det(T[0:3, 0:3]) = 1 and
+      T[3, 0:3] = [0, 0, 0, 1]). Assumption is not checked (for speed), and if the assumption does
+      not hold, the result is not guaranteed to be the matrix inverse.
+    - Returns Tinv: T^{-1}.
+    '''
+    
+    R = T[0:3, 0:3].T
+    Tinv = eye(4)
+    Tinv[0:3, 0:3] = R
+    Tinv[0:3, 3] = -dot(R, T[0:3, 3])
+    return Tinv
 
 def LoadMat(fileName):
   '''Loads a point cloud from a Matlab .mat file.
@@ -451,3 +465,14 @@ def Voxelize(voxelSize, cloud, normals=None):
     return cloud, normals
 
   return cloud
+  
+def WorkspaceCenter(workspace):
+  '''Returns the center of a rectangular workspace.
+  - Input workspace: List of pairs or 2D array of [(minX, maxX), (minY, maxY), (minZ, maxZ)].
+  - Returns center: Numpy array of length 3.
+  '''
+  
+  return array([
+    workspace[0][0] + (workspace[0][1] - workspace[0][0]) / 2.0,
+    workspace[1][0] + (workspace[1][1] - workspace[1][0]) / 2.0,
+    workspace[2][0] + (workspace[2][1] - workspace[2][0]) / 2.0])
