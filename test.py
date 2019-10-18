@@ -44,7 +44,7 @@ def TestComputeNormals(X):
   return True
   
 def TestExtractEuclideanClusters(X):
-  clouds = point_cloud.ExtractEuclideanClusters(X, 0.01, 30)
+  clouds, _ = point_cloud.ExtractEuclideanClusters(X, 0.01, 30)
   if len(clouds) != 1: return False
   return True
   

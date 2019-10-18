@@ -114,7 +114,8 @@ def ComputeNormals(cloud, viewPoints=None, kNeighbors=0, rNeighbors=0.03):
 
   return normals
   
-def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxClusterSize = None):
+def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxClusterSize = None,
+  returnClouds = True):
   '''Clusters the point cloud using PCL's Euclidean clustering method.
   - Input cloud: nx3 numpy array.
   - Input searchRadius: Maximum distance between neighboring points in the same cluster.
@@ -122,6 +123,9 @@ def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxCluster
   - Input maxClusterSize: Maximum number of points in a single cluster.
   - Returns clouds: A list of clouds with points from cloud, 1 for each cluster found. The number of
     clusters is len(clouds).
+  - Returns clusterId: An n-element array with indices indicating to which cluster each point in
+    cloud belongs. An index of 0 indicates that the point does not belong to any cluster. The number
+    of clusters is max(clusterId).
   '''
   
   if maxClusterSize is None:
@@ -145,7 +149,7 @@ def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxCluster
   for i in xrange(1, nClusters + 1):
     clouds.append(cloud[clusterId == i, :])
     
-  return clouds
+  return clouds, clusterId
 
 def FilterNans(cloud):
   '''Removes points that are (NaN, NaN, NaN).
