@@ -114,8 +114,7 @@ def ComputeNormals(cloud, viewPoints=None, kNeighbors=0, rNeighbors=0.03):
 
   return normals
   
-def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxClusterSize = None,
-  returnClouds = True):
+def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxClusterSize = None):
   '''Clusters the point cloud using PCL's Euclidean clustering method.
   - Input cloud: nx3 numpy array.
   - Input searchRadius: Maximum distance between neighboring points in the same cluster.
