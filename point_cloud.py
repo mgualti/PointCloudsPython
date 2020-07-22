@@ -71,6 +71,7 @@ PclVoxelizeWithNormals.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), ndp
 
 def ComputeNormals(cloud, viewPoints=None, kNeighbors=0, rNeighbors=0.03):
   '''Calls PCL to compute surface normals for the input cloud.
+  
   - Input cloud: nx3 point cloud to compute normals for.
   - Input viewPoints: nx3 list of view points from which each cloud point was observed.
   - Input kNeighbors: Number of neighbors to consider in normals calculation. Set to negative if
@@ -117,6 +118,7 @@ def ComputeNormals(cloud, viewPoints=None, kNeighbors=0, rNeighbors=0.03):
 def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxClusterSize = None,
   returnClouds = True):
   '''Clusters the point cloud using PCL's Euclidean clustering method.
+  
   - Input cloud: nx3 numpy array.
   - Input searchRadius: Maximum distance between neighboring points in the same cluster.
   - Input minClusterSize: Minimum number of points in a single cluster.
@@ -153,6 +155,7 @@ def ExtractEuclideanClusters(cloud, searchRadius, minClusterSize = 0, maxCluster
 
 def FilterNans(cloud):
   '''Removes points that are (NaN, NaN, NaN).
+  
   - Input cloud: nx3 numpy array.
   - Returns cloud: nx3 numpy array without points that are all NaNs.
   '''
@@ -163,6 +166,7 @@ def FilterNans(cloud):
 
 def FilterNearAndFarPoints(axis, minDist, maxDist, cloud, normals=None):
     '''Filters points outside min and max distances for a given coordinate.
+    
     - Input axis: Coordinate to check min and max distance for filtering.
     - Input minDist: Points less than this along the given axis are filtered.
     - Input maxDist: Points grater than this along the given axis are filtered.
@@ -181,6 +185,7 @@ def FilterNearAndFarPoints(axis, minDist, maxDist, cloud, normals=None):
 
 def FilterWorkspace(workspace, cloud, normals=None):
   '''Removes points that are outside of a workspace defined in terms of standard basis axes.
+  
   - Input workspace: List of tuples of the form [(minX, maxX), (minY, maxY), (minZ, maxZ)]
   - Input cloud: nx3 numpy array.
   - Input normals: (optional) nx3 numpy array.
@@ -199,6 +204,7 @@ def FilterWorkspace(workspace, cloud, normals=None):
 
 def Icp(cloud1, cloud2):
   '''Runs iterative closest point to align cloud2 to cloud1.
+  
   - Input cloud1: nx3 numpy array, the target cloud.
   - Input cloud2: nx3 numpy array, the source cloud.
   - Returns T: 4x4 homogenous transform that should be applied to cloud2 to make it similar to cloud1.
@@ -214,6 +220,7 @@ def Icp(cloud1, cloud2):
   
 def InverseTransform(T):
     '''Quick inverse of homogeneous transform. Faster than linalg.inv.
+    
     - Input T: 4x4 matrix, assumed to be in SE(3) (i.e. det(T[0:3, 0:3]) = 1 and
       T[3, 0:3] = [0, 0, 0, 1]). Assumption is not checked (for speed), and if the assumption does
       not hold, the result is not guaranteed to be the matrix inverse.
@@ -228,6 +235,7 @@ def InverseTransform(T):
 
 def LoadMat(fileName):
   '''Loads a point cloud from a Matlab .mat file.
+  
   - Input fileName: Name of the Matlab file to load.
   - Returns cloud: nx3, c-contigous, float32 numpy array.
   - Returns normals: nx3, c-contiguous, normals array, or None if normals not present.
@@ -240,6 +248,7 @@ def LoadMat(fileName):
 
 def LoadPcd(fileName):
   '''Calls PCL to load the PCD file.
+  
   - Input fileName: Full file name to load.
   - Returns cloud: nx3, c-contiguous, float32 numpy array.
   '''
@@ -261,6 +270,7 @@ def LoadPcd(fileName):
 
 def Plot(cloud, normals=None, nthNormal=0):
   '''Uses matplotlib to plot the points in 3D.
+  
   - Input cloud: nx3 numpy array of points.
   - Input normals: (Optional) nx3 numpy array of normals.
   - Input nthNormal: (Optional) Only plot every nthNormal normals.
@@ -308,29 +318,41 @@ def Plot(cloud, normals=None, nthNormal=0):
 
 def RemoveStatisticalOutliers(cloud, meanK, stddevMulThresh):
   '''Calls PCL to remove statistical outliers from the cloud.
+  
   - Input cloud: nx3 point cloud from which to remove outliers.
   - Input meanK: Scalar number of neighbors to analyze.
   - Input stddevMulThresh: Scalar standard deviation multiplier.
   - Returns cloud: nx3, c-contiguous, float32 numpy array.
   '''
+  
+  # input checking
+  if cloud.shape[0] == 0:
+    return cloud
 
+  # call C++ wrapper
   cloud = ascontiguousarray(cloud, dtype='float32')
-
+  
   nPoints = pointer(c_int(0))
   ppoints = pointer(pointer(c_float(0)))
 
-  PclRemoveStatisticalOutliers(cloud, cloud.shape[0], meanK, stddevMulThresh,
-    ppoints, nPoints)
+  errorCode = PclRemoveStatisticalOutliers(
+    cloud, cloud.shape[0], meanK, stddevMulThresh, ppoints, nPoints)
+
+  # unpack output    
   points = ppoints.contents
   nPoints = nPoints.contents.value
-
   cloud = empty((nPoints, 3), dtype='float32', order='C')
   CopyAndFree(points, cloud, nPoints)
+  
+  # check for errors
+  if errorCode < 0:
+    raise Exception("Error {} when calling PclRemoveStatisticalOutliers.".format(errorCode))
 
   return cloud
 
 def SaveMat(fileName, cloud, normals=None):
   '''Saves cloud to Matlab .mat file.
+  
   - Input fileName: Name of the file to save (including extension).
   - Input cloud: nx3 numpy array to save to the mat file.
   - Input normals: Optionally nx3 array of surface normals to save.
@@ -361,6 +383,7 @@ def SaveOrganizedPcd(fileName, cloud, height, width):
 
 def SegmentPlane(cloud, distanceThreshold):
   '''Calls PCL to segment the largest plane from the cloud.
+  
   - Input cloud: nx3 point cloud from which to segment the plane.
   - Input distanceThreshold: Scalar distance threshold from plane.
   - Returns indicesOut: nx1, c-contiguous, int32 numpy array.
@@ -382,6 +405,7 @@ def SegmentPlane(cloud, distanceThreshold):
 
 def Transform(T, cloud, normals=None):
   '''Applies homogeneous transform T to the cloud: y = Tx, for each x in cloud.
+  
   - Input T: 4x4 matrix, consisting of a 3x3 rotation matrix and 3x1 translation vector.
   - Input cloud: nx3 points to apply transform to.
   - Input normals: (optional) nx3 normalized vectors which will only be rotated.
@@ -400,6 +424,7 @@ def Transform(T, cloud, normals=None):
 
 def UpdatePlotExtents(x, y, z, extents=None):
   '''Extends the current extents in a plot by the given values.
+  
   - Input x: List of x-coordiantes.
   - Input y: List of y-coordinates.
   - Input z: Lizt of z-coordinates.
@@ -425,6 +450,7 @@ def UpdatePlotExtents(x, y, z, extents=None):
 
 def Voxelize(voxelSize, cloud, normals=None):
   '''Calls PCL to load the voxelize the cloud.
+  
   - Input voxelSize: Scalar size of the voxels to use.
   - Input cloud: nx3 point cloud to voxelize.
   - Input normals: (Optional) nx3 array of surface normals .
@@ -472,6 +498,7 @@ def Voxelize(voxelSize, cloud, normals=None):
   
 def WorkspaceCenter(workspace):
   '''Returns the center of a rectangular workspace.
+  
   - Input workspace: List of pairs or 2D array of [(minX, maxX), (minY, maxY), (minZ, maxZ)].
   - Returns center: Numpy array of length 3.
   '''
