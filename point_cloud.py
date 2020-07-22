@@ -327,7 +327,7 @@ def RemoveStatisticalOutliers(cloud, meanK, stddevMulThresh):
   
   # input checking
   if cloud.shape[0] == 0:
-    return cloud
+    return copy(cloud)
 
   # call C++ wrapper
   cloud = ascontiguousarray(cloud, dtype='float32')
