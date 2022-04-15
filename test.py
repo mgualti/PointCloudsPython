@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 '''Script for testing point_cloud library.'''
 
 from time import time
@@ -17,7 +17,7 @@ def main():
     END = '\033[0m'
   except Exception as e:
     print("Failed to initialize testing.")
-    print str(e)
+    print(str(e))
     return
 
   items = globals()
@@ -27,7 +27,7 @@ def main():
       try:
         result = eval(item + "(X)")
       except Exception as e:
-        print str(e)
+        print(str(e))
         result = False
 
       if result: print("[" + GREEN +"PASS" + END + "] " + item[4:])
@@ -53,8 +53,8 @@ def TestIcp(X):
   Y = point_cloud.Transform(R, X)
   T = point_cloud.Icp(Y, X)
   if max(abs(T-R)) > 0.001:
-    print T
-    print R
+    print(T)
+    print(R)
     return False
   return True
 
@@ -63,7 +63,7 @@ def TestRemoveStatisticalOutliers(X):
   Y = vstack((X, outlier))
   Z = point_cloud.RemoveStatisticalOutliers(Y, 50, 0.05)
   if Z.shape[0] != X.shape[0] or Z.shape[1] != 3:
-    print X.shape, Z.shape
+    print(X.shape, Z.shape)
     return False
   return True
 
@@ -82,9 +82,46 @@ def TestVoxelize(X):
   B = point_cloud.Voxelize(0.005, X)
   C = point_cloud.Voxelize(0.002, X)
   if A.shape[0] > B.shape[0] or B.shape[0] > C.shape[0] or C.shape[0] > X.shape[0]:
-    print X.shape, A.shape, B.shape, C.shape
+    print(X.shape, A.shape, B.shape, C.shape)
     return False
   if A.shape[1] != 3 or B.shape[1] != 3 or C.shape[1] != 3: return False
+  return True
+
+def TestVoxelizeWithColors(X):
+
+  C = array([[0, 128, 255]], dtype="int32")
+  C = tile(C, (X.shape[0], 1))
+  XX, CC = point_cloud.Voxelize(0.005, X, colors = C)
+  if not CC.shape == XX.shape:
+    print(CC.shape, XX.shape)
+    return False
+  if not all((C[0] == CC).flatten()):
+    return False
+
+  C = array([[0., 128., 255.]]) / 255.0
+  C = tile(C, (X.shape[0], 1))
+  XX, CC = point_cloud.Voxelize(0.005, X, colors = C)
+  if not CC.shape == XX.shape:
+    print(CC.shape, XX.shape)
+    return False
+  if not all((C[0] == CC).flatten()):
+    return False
+
+  return True
+
+def TestVoxelizeWithColorsAndNormals(X):
+  N = point_cloud.ComputeNormals(X)
+  C = array([[0.0, 0.5, 1.0]])
+  C = tile(C, (X.shape[0], 1))
+  XX, NN, CC = point_cloud.Voxelize(0.005, X, N, C)
+  if not CC.shape == XX.shape:
+    print(CC.shape, XX.shape)
+    return False
+  if not NN.shape == XX.shape:
+    print(NN.shape, XX.shape)
+    return False
+  if max(abs(CC - C[0])) > (1.0 / 255.0):
+    return False
   return True
 
 def TestVoxelizeWithNormals(X):
@@ -92,13 +129,13 @@ def TestVoxelizeWithNormals(X):
   XX, NN = point_cloud.Voxelize(0.005, X, N)
   norms = norm(NN, axis=1)
   if XX.shape[0] > X.shape[0] or NN.shape[0] > N.shape[0]:
-    print X.shape, XX.shape, N.shape, NN.shape
+    print(X.shape, XX.shape, N.shape, NN.shape)
     return False
   if XX.shape[0] != NN.shape[0] or XX.shape[1] != NN.shape[1]:
     return False
   if XX.shape[1] != 3 or NN.shape[1] != 3: return False
   if (norms > 1.001).any() or (norms < 0.999).any():
-    print max(norms), min(norms)
+    print(max(norms), min(norms))
     return False
   return True
 

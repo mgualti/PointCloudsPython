@@ -33,6 +33,43 @@ int PclArrayToPointCloudPtr(float* points, int nPoints, PointCloud<PointXYZ>::Pt
   return 0;
 }
 
+int PclArraysToPointCloudColorPtr(float* points, uint8_t* colors, int nPoints, PointCloud<PointXYZRGB>::Ptr& cloud)
+{
+  PointXYZRGB pn;
+  for (int i = 0; i < nPoints; i++)
+  {
+    pn.x = points[3*i+0];
+    pn.y = points[3*i+1];
+    pn.z = points[3*i+2];
+    pn.r = colors[3*i+0];
+    pn.g = colors[3*i+1];
+    pn.b = colors[3*i+2];
+    cloud->push_back(pn);
+  }
+
+  return 0;
+}
+
+int PclArraysToPointCloudColorNormalPtr(float* points, uint8_t* colors, float* normals, int nPoints, PointCloud<PointXYZRGBNormal>::Ptr& cloud)
+{
+  PointXYZRGBNormal pn;
+  for (int i = 0; i < nPoints; i++)
+  {
+    pn.x = points[3*i+0];
+    pn.y = points[3*i+1];
+    pn.z = points[3*i+2];
+    pn.r = colors[3*i+0];
+    pn.g = colors[3*i+1];
+    pn.b = colors[3*i+2];
+    pn.normal_x = normals[3*i+0];
+    pn.normal_y = normals[3*i+1];
+    pn.normal_z = normals[3*i+2];
+    cloud->push_back(pn);
+  }
+
+  return 0;
+}
+
 int PclArraysToPointCloudNormalPtr(float* points, float* normals, int nPoints, PointCloud<PointNormal>::Ptr& cloud)
 {
   PointNormal pn;
@@ -82,6 +119,53 @@ int PclPointCloudToNewArray(PointCloud<PointXYZ>& cloud, float** ppoints, int* n
   return 0;
 }
 
+int PclPointCloudColorToNewArrays(PointCloud<PointXYZRGB>& cloud, float** ppoints, uint8_t** pcolors, int* nPoints)
+{
+  *nPoints = cloud.size();
+  float* points = new float[*nPoints * 3];
+  uint8_t* colors = new uint8_t[*nPoints * 3];
+  *ppoints = points;
+  *pcolors = colors;
+
+  for (int i = 0; i < *nPoints; i++)
+  {
+    points[3*i+0] = cloud[i].x;
+    points[3*i+1] = cloud[i].y;
+    points[3*i+2] = cloud[i].z;
+    colors[3*i+0] = cloud[i].r;
+    colors[3*i+1] = cloud[i].g;
+    colors[3*i+2] = cloud[i].b;
+  }
+
+  return 0;
+}
+
+int PclPointCloudColorNormalToNewArrays(PointCloud<PointXYZRGBNormal>& cloud, float** ppoints, uint8_t** pcolors, float** pnormals, int* nPoints)
+{
+  *nPoints = cloud.size();
+  float* points = new float[*nPoints * 3];
+  uint8_t* colors = new uint8_t[*nPoints * 3];
+  float* normals = new float[*nPoints * 3];
+  *ppoints = points;
+  *pcolors = colors;
+  *pnormals = normals;
+
+  for (int i = 0; i < *nPoints; i++)
+  {
+    points[3*i+0] = cloud[i].x;
+    points[3*i+1] = cloud[i].y;
+    points[3*i+2] = cloud[i].z;
+    colors[3*i+0] = cloud[i].r;
+    colors[3*i+1] = cloud[i].g;
+    colors[3*i+2] = cloud[i].b;
+    normals[3*i+0] = cloud[i].normal_x;
+    normals[3*i+1] = cloud[i].normal_y;
+    normals[3*i+2] = cloud[i].normal_z;
+  }
+
+  return 0;
+}
+
 int PclPointCloudNormalToNewArrays(PointCloud<PointNormal>& cloud, float** ppoints, float** pnormals, int* nPoints)
 {
   *nPoints = cloud.size();
@@ -122,6 +206,13 @@ int PclPointIndicesToNewArray(PointIndices::Ptr& pointIndicesPtr, int** pindices
 extern "C" int CopyAndFree(float* in, float* out, int nPoints)
 {
   memcpy(out, in, sizeof(float)*nPoints*3);
+  delete[] in;
+  return 0;
+}
+
+extern "C" int CopyAndFreeColors(uint8_t* in, uint8_t* out, int nColors)
+{
+  memcpy(out, in, sizeof(uint8_t)*nColors*3);
   delete[] in;
   return 0;
 }
@@ -315,6 +406,40 @@ extern "C" int PclVoxelize(float* pointsIn, int nPointsIn, float voxelSize, floa
   grid.filter(cloudOut);
 
   PclPointCloudToNewArray(cloudOut, pointsOut, nPointsOut);
+  return 0;
+}
+
+extern "C" int PclVoxelizeWithColors(float* pointsIn, uint8_t* colorsIn, int nPointsIn, float voxelSize, float** pointsOut, uint8_t** colorsOut, int* nPointsOut)
+{
+  PointCloud<PointXYZRGB>::Ptr cloudIn(new PointCloud<PointXYZRGB>);
+  PointCloud<PointXYZRGB> cloudOut;
+
+  PclArraysToPointCloudColorPtr(pointsIn, colorsIn, nPointsIn, cloudIn);
+
+  VoxelGrid<PointXYZRGB> grid;
+  grid.setInputCloud(cloudIn);
+  grid.setDownsampleAllData(true);
+  grid.setLeafSize(voxelSize, voxelSize, voxelSize);
+  grid.filter(cloudOut);
+
+  PclPointCloudColorToNewArrays(cloudOut, pointsOut, colorsOut, nPointsOut);
+  return 0;
+}
+
+extern "C" int PclVoxelizeWithColorsAndNormals(float* pointsIn, uint8_t* colorsIn, float* normalsIn, int nPointsIn, float voxelSize, float** pointsOut, uint8_t** colorsOut, float** normalsOut, int* nPointsOut)
+{
+  PointCloud<PointXYZRGBNormal>::Ptr cloudIn(new PointCloud<PointXYZRGBNormal>);
+  PointCloud<PointXYZRGBNormal> cloudOut;
+
+  PclArraysToPointCloudColorNormalPtr(pointsIn, colorsIn, normalsIn, nPointsIn, cloudIn);
+
+  VoxelGrid<PointXYZRGBNormal> grid;
+  grid.setInputCloud(cloudIn);
+  grid.setDownsampleAllData(true);
+  grid.setLeafSize(voxelSize, voxelSize, voxelSize);
+  grid.filter(cloudOut);
+
+  PclPointCloudColorNormalToNewArrays(cloudOut, pointsOut, colorsOut, normalsOut, nPointsOut);
   return 0;
 }
 
