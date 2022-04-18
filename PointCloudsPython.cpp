@@ -319,6 +319,52 @@ extern "C" int PclLoadPcd(char* fileName, float** ppoints, int* nPoints)
   return 0;
 }
 
+extern "C" int PclPointCloud2MsgToXyz(uint8_t* data, int height, int width, int rowStep, int pointStep, int xOffset, int yOffset, int zOffset, float* cloud)
+{
+  int inputOffset;
+  int outputOffset;
+
+  for (int i = 0; i < height; i++)
+  {
+    for (int j = 0; j < width; j++)
+    {
+      inputOffset = i * rowStep + j * pointStep;
+      outputOffset = 3 * (i * width + j);
+
+      memcpy(cloud + outputOffset + 0, data + inputOffset + xOffset, sizeof(float));
+      memcpy(cloud + outputOffset + 1, data + inputOffset + yOffset, sizeof(float));
+      memcpy(cloud + outputOffset + 2, data + inputOffset + zOffset, sizeof(float));
+    }
+  }
+
+  return 0;
+}
+
+extern "C" int PclPointCloud2MsgToXyzRgb(uint8_t* data, int height, int width, int rowStep, int pointStep, int xOffset, int yOffset, int zOffset, int rgbOffset, float* cloud, uint8_t* rgb)
+{
+  int inputOffset;
+  int outputOffset;
+
+  for (int i = 0; i < height; i++)
+  {
+    for (int j = 0; j < width; j++)
+    {
+      inputOffset = i * rowStep + j * pointStep;
+      outputOffset = 3 * (i * width + j);
+
+      memcpy(cloud + outputOffset + 0, data + inputOffset + xOffset, sizeof(float));
+      memcpy(cloud + outputOffset + 1, data + inputOffset + yOffset, sizeof(float));
+      memcpy(cloud + outputOffset + 2, data + inputOffset + zOffset, sizeof(float));
+
+      memcpy(rgb + outputOffset + 0, data + inputOffset + rgbOffset + 2, sizeof(uint8_t));
+      memcpy(rgb + outputOffset + 1, data + inputOffset + rgbOffset + 1, sizeof(uint8_t));
+      memcpy(rgb + outputOffset + 2, data + inputOffset + rgbOffset + 0, sizeof(uint8_t));
+    }
+  }
+
+  return 0;
+}
+
 extern "C" int PclSavePcd(char* fileName, float* points, int nPoints)
 {
   PointCloud<PointXYZ> cloud;

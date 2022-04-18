@@ -47,6 +47,14 @@ PclLoadPcd = PointCloudsPython.PclLoadPcd
 PclLoadPcd.restype = c_int
 PclLoadPcd.argtypes = [POINTER(c_char), POINTER(POINTER(c_float)), POINTER(c_int)]
 
+PclPointCloud2MsgToXyzRgb = PointCloudsPython.PclPointCloud2MsgToXyzRgb
+PclPointCloud2MsgToXyzRgb.restype = c_int
+PclPointCloud2MsgToXyzRgb.argtypes = [ndpointer(c_uint8, flags="C_CONTIGUOUS"), c_int, c_int, c_int, c_int, c_int, c_int, c_int, c_int, ndpointer(c_float, flags="C_CONTIGUOUS"), ndpointer(c_uint8, flags="C_CONTIGUOUS")]
+
+PclPointCloud2MsgToXyz = PointCloudsPython.PclPointCloud2MsgToXyz
+PclPointCloud2MsgToXyz.restype = c_int
+PclPointCloud2MsgToXyz.argtypes = [ndpointer(c_uint8, flags="C_CONTIGUOUS"), c_int, c_int, c_int, c_int, c_int, c_int, c_int, ndpointer(c_float, flags="C_CONTIGUOUS")]
+
 PclSavePcd = PointCloudsPython.PclSavePcd
 PclSavePcd.restype = c_int
 PclSavePcd.argtypes = [POINTER(c_char), ndpointer(c_float, flags="C_CONTIGUOUS"), c_int]
@@ -326,6 +334,40 @@ def Plot(cloud, normals=None, nthNormal=0):
   ax.set_title(f"Point cloud with {len(cloud)} points.")
 
   pyplot.show(block=True)
+
+def PointCloud2MsgToArray(msg):
+  '''Converts a PointCloud2 ROS message to numpy arrays.
+  
+  - Input: PointCloud2 ROS message.
+  - Returns cloud: nx3 numpy array of points: [..., (x_i, y_i, z_i), ...].
+  - Returns rgb: (Optional) If the message has a color field, returns colors:
+    [..., (r_i, g_i, b_i), ...]. Each r, g, b component is a byte with values in the range [0, 255].
+  '''
+
+  # TODO: Assumes native endianness.
+  # TODO: Data type assumed to be float.
+
+  n = msg.width * msg.height
+  cloud = empty((n, 3), dtype='float32', order='C')
+  rgb = empty((n, 3), dtype='uint8', order='C')
+
+  fieldToOffset = {msg.fields[i].name:msg.fields[i].offset for i in range(len(msg.fields))}
+  has_color = "rgb" in fieldToOffset.keys()
+  data = array(msg.data, dtype="uint8")
+
+  if has_color:
+    errorCode = PclPointCloud2MsgToXyzRgb(data, msg.height, msg.width, msg.row_step, msg.point_step,
+      fieldToOffset["x"], fieldToOffset["y"], fieldToOffset["z"], fieldToOffset["rgb"], cloud, rgb)
+  else:
+    errorCode = PclPointCloud2MsgToXyz(data, msg.height, msg.width, msg.row_step, msg.point_step,
+      fieldToOffset["x"],   fieldToOffset["y"], fieldToOffset["z"], cloud)
+
+  if errorCode < 0:
+    raise Exception(f"Error {errorCode} when calling PclRemoveStatisticalOutliers.")
+
+  if has_color:
+    return cloud, rgb
+  return cloud
 
 def RemoveStatisticalOutliers(cloud, meanK, stddevMulThresh):
   '''Calls PCL to remove statistical outliers from the cloud.
