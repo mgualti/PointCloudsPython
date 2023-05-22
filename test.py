@@ -61,9 +61,18 @@ def TestIcp(X):
 def TestRemoveStatisticalOutliers(X):
   outlier = array([0, 0, 10])
   Y = vstack((X, outlier))
-  Z = point_cloud.RemoveStatisticalOutliers(Y, 50, 0.05)
+  Z = point_cloud.RemoveStatisticalOutliers(50, 0.05, Y)
   if Z.shape[0] != X.shape[0] or Z.shape[1] != 3:
     print(X.shape, Z.shape)
+    return False
+  return True
+
+def TestRemoveStatisticalOutliersWithNormals(X):
+  outlier = array([0, 0, 10])  
+  Y = vstack((X, outlier))
+  N = point_cloud.ComputeNormals(Y)
+  Y, N = point_cloud.RemoveStatisticalOutliers(50, 0.05, Y, N)
+  if X.shape[0] != Y.shape[0] or X.shape[0] != Y.shape[0] or Y.shape[1] != 3 or N.shape[1] != 3:
     return False
   return True
 

@@ -417,6 +417,23 @@ extern "C" int PclRemoveStatisticalOutliers(float* pointsIn, int nPointsIn, int 
   return 0;
 }
 
+extern "C" int PclRemoveStatisticalOutliersWithNormals(float* pointsIn, float* normalsIn, int nPointsIn, int meanK, float stddevMulThresh, float** pointsOut, float** normalsOut, int* nPointsOut)
+{
+  PointCloud<PointNormal>::Ptr cloudIn(new PointCloud<PointNormal>);
+  PointCloud<PointNormal> cloudOut;
+
+  PclArraysToPointCloudNormalPtr(pointsIn, normalsIn, nPointsIn, cloudIn);
+
+  pcl::StatisticalOutlierRemoval<pcl::PointNormal> sor;
+  sor.setInputCloud(cloudIn);
+  sor.setMeanK(meanK);
+  sor.setStddevMulThresh(stddevMulThresh);
+  sor.filter(cloudOut);
+  
+  PclPointCloudNormalToNewArrays(cloudOut, pointsOut, normalsOut, nPointsOut);
+  return 0;
+}
+
 extern "C" int PclSegmentPlane(float* pointsIn, int nPointsIn, float distanceThreshold, int** indicesOut, int* nIndicesOut)
 {
   PointCloud<PointXYZ>::Ptr cloudIn(new PointCloud<PointXYZ>);

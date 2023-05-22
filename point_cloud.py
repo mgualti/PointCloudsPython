@@ -67,6 +67,10 @@ PclRemoveStatisticalOutliers = PointCloudsPython.PclRemoveStatisticalOutliers
 PclRemoveStatisticalOutliers.restype = c_int
 PclRemoveStatisticalOutliers.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_int, c_float, POINTER(POINTER(c_float)), POINTER(c_int)]
 
+PclRemoveStatisticalOutliersWithNormals = PointCloudsPython.PclRemoveStatisticalOutliersWithNormals
+PclRemoveStatisticalOutliersWithNormals.restype = c_int
+PclRemoveStatisticalOutliersWithNormals.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_int, c_float, POINTER(POINTER(c_float)), POINTER(POINTER(c_float)), POINTER(c_int)]
+
 PclSegmentPlane = PointCloudsPython.PclSegmentPlane
 PclSegmentPlane.restype = c_int
 PclSegmentPlane.argtypes = [ndpointer(c_float, flags="C_CONTIGUOUS"), c_int, c_float, POINTER(POINTER(c_int)), POINTER(c_int)]
@@ -369,39 +373,63 @@ def PointCloud2MsgToArray(msg):
     return cloud, rgb
   return cloud
 
-def RemoveStatisticalOutliers(cloud, meanK, stddevMulThresh):
+def RemoveStatisticalOutliers(meanK, stddevMulThresh, cloud, normals=None):
   '''Calls PCL to remove statistical outliers from the cloud.
   
-  - Input cloud: nx3 point cloud from which to remove outliers.
   - Input meanK: Scalar number of neighbors to analyze.
   - Input stddevMulThresh: Scalar standard deviation multiplier.
+  - Input cloud: nx3 point cloud from which to remove outliers.
+  - Input normals: (Optional) nx3 normals for each point in cloud.
   - Returns cloud: nx3, c-contiguous, float32 numpy array.
+  - Returns normals: (Optional) a surface normal vector for each point in the output cloud.
   '''
   
   # input checking
   if cloud.shape[0] == 0:
     return copy(cloud)
+  
+  if normals is not None:
+    if normals.shape[0] != cloud.shape[0]:
+      raise Exception(f"Cloud has {cloud.shape[0]} points and normals has {normals.shape[0]} points!")
+    if normals.shape[1] != 3:
+      raise Exception(f"Expected 3 columns in normals, got {normals.shape[1]}.")
 
   # call C++ wrapper
   cloud = ascontiguousarray(cloud, dtype='float32')
-  
   nPoints = pointer(c_int(0))
-  ppoints = pointer(pointer(c_float(0)))
+  pcloud = pointer(pointer(c_float(0)))
 
-  errorCode = PclRemoveStatisticalOutliers(
-    cloud, cloud.shape[0], meanK, stddevMulThresh, ppoints, nPoints)
+  if normals is not None:
+    normals = ascontiguousarray(normals, dtype='float32')
+    pnormals = pointer(pointer(c_float(0)))
+
+  if normals is None:
+    errorCode = PclRemoveStatisticalOutliers(
+      cloud, cloud.shape[0], meanK, stddevMulThresh, pcloud, nPoints)
+  else:
+    errorCode = PclRemoveStatisticalOutliersWithNormals(
+      cloud, normals, cloud.shape[0], meanK, stddevMulThresh, pcloud, pnormals, nPoints)
 
   # unpack output    
-  points = ppoints.contents
+  cloud_float_pointer = pcloud.contents
   nPoints = nPoints.contents.value
   cloud = empty((nPoints, 3), dtype='float32', order='C')
-  CopyAndFree(points, cloud, nPoints)
+  CopyAndFree(cloud_float_pointer, cloud, nPoints)
+
+  if normals is not None:
+    normals_float_pointer = pnormals.contents
+    normals = empty((nPoints, 3), dtype='float32', order='C')
+    CopyAndFree(normals_float_pointer, normals, nPoints)
   
   # check for errors
   if errorCode < 0:
-    raise Exception(f"Error {errorCode} when calling PclRemoveStatisticalOutliers.")
+    function_name = "PclRemoveStatisticalOutliers" if normals is None else "PclStatisticalOutliersWithNormals"
+    raise Exception(f"Error {errorCode} when calling {function_name}.")
 
-  return cloud
+  if normals is None:
+    return cloud
+
+  return cloud, normals
 
 def SaveMat(fileName, cloud, normals=None):
   '''Saves cloud to Matlab .mat file.
