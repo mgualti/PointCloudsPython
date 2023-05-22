@@ -12,7 +12,7 @@ from scipy.io import loadmat, savemat
 from matplotlib import pyplot
 from mpl_toolkits.mplot3d import Axes3D
 from numpy.ctypeslib import ndpointer
-from numpy import array, ascontiguousarray, dot, empty, eye, integer, isinf, isnan, issubdtype, \
+from numpy import array, ascontiguousarray, dot, empty, eye, frombuffer, integer, isinf, isnan, issubdtype, \
   logical_and, logical_not, logical_or, ones, repeat, reshape, sum, vstack, zeros
 
 # C BINDINGS =======================================================================================
@@ -353,7 +353,7 @@ def PointCloud2MsgToArray(msg):
 
   fieldToOffset = {msg.fields[i].name:msg.fields[i].offset for i in range(len(msg.fields))}
   has_color = "rgb" in fieldToOffset.keys()
-  data = array(msg.data, dtype="uint8")
+  data = frombuffer(msg.data, dtype="uint8")
 
   if has_color:
     errorCode = PclPointCloud2MsgToXyzRgb(data, msg.height, msg.width, msg.row_step, msg.point_step,
